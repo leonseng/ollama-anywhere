@@ -1,26 +1,30 @@
 services:
-  nginx:
-    container_name: nginx
+  ollama-proxy.local:
+    container_name: ollama-proxy
     image: private-registry.nginx.com/nginx-plus/agent:debian
+    hostname: lseng-docker
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d/:/etc/nginx/conf.d/:ro
+      - .tmp/ssl/:/etc/nginx/ssl/:rw
     ports:
-      - "80:80"  # Open WebUI
-      - "8081:8081"  # NGINX Plus dashboard
+      - "127.0.0.1:443:443"  # Open WebUI
+      - "127.0.0.1:8080:8080"  # NGINX Plus dashboard
     restart: always
     environment:
-      NMS_TLS_ENABLE: true
-      NMS_SERVER_GRPCPORT: 443
-      NMS_SERVER_TOKEN: $NGINX_ONE_DATA_PLANE_KEY
+      NGINX_AGENT_TLS_ENABLE: true
+      NGINX_AGENT_SERVER_HOST: agent.connect.nginx.com
+      NGINX_AGENT_SERVER_GRPCPORT: 443
+      NGINX_AGENT_SERVER_TOKEN: $NGINX_ONE_DATA_PLANE_KEY
       NGINX_AGENT_INSTANCE_GROUP: $NGINX_ONE_CONFIG_SYNC_GROUP
+
 
   open-webui:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:main
     environment:
-      OLLAMA_BASE_URL: http://nginx:11435
+      OLLAMA_BASE_URL: https://ollama-proxy.local:11443
       WEBUI_AUTH: false
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
     volumes:
-      - ./open-webui:/app/backend/data
+      - $OLLAMA_PROXY_CA_CERT_PATH:/etc/ssl/certs/ca-certificates.crt:ro
+      - ./.tmp/open-webui:/app/backend/data
     restart: always
